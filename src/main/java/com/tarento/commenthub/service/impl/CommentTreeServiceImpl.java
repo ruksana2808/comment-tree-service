@@ -15,13 +15,16 @@ import com.tarento.commenthub.repository.CommentTreeRepository;
 import com.tarento.commenthub.service.CommentTreeService;
 import com.tarento.commenthub.utility.Status;
 import java.sql.Timestamp;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -37,6 +40,12 @@ public class CommentTreeServiceImpl implements CommentTreeService {
 
   @Autowired
   private CommentTreeRepository commentTreeRepository;
+
+  @Autowired
+  private RedisTemplate redisTemplate;
+
+  @Value("${redis.ttl}")
+  private long redisTtl;
 
 
 
@@ -82,11 +91,24 @@ public class CommentTreeServiceImpl implements CommentTreeService {
     try {
       response.setResponseCode(HttpStatus.OK);
       String commentTreeId = generateJwtTokenKey(commentTreeIdentifierDTO);
+      // Check if the value is a Map or needs deserialization
+      // Retrieve the value from Redis
+      Map<String, Object> resultMap = (Map<String, Object>) redisTemplate.opsForValue()
+          .get(Constants.COMMENT_TREE_REDIS_KEY + commentTreeId);
+      if (resultMap != null) {
+        log.info("CommentTreeService::getCommentTree:found in redis");
+        response.setResult(resultMap);
+        return response;
+      }
       Optional<CommentTree> optionalCommentTree = commentTreeRepository.findById(commentTreeId);
       if (optionalCommentTree.isPresent()) {
-        Map<String, Object> resultMap = objectMapper.convertValue(
+        log.info("CommentTreeService::getCommentTree:fetching from postgre");
+        resultMap = objectMapper.convertValue(
             optionalCommentTree.get().getCommentTreeData(), Map.class);
         response.setResult(resultMap);
+        redisTemplate.opsForValue()
+            .set(Constants.COMMENT_TREE_REDIS_KEY + commentTreeId, resultMap, redisTtl,
+                TimeUnit.SECONDS);
         return response;
       }
       log.info("CommentTreeService::getCommentTree:not found");
