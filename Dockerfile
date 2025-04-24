@@ -1,5 +1,5 @@
-FROM openjdk:8
-
+FROM openjdk:17-slim
+# Install necessary dependencies
 RUN apt-get update \
     && apt-get install -y \
         curl \
@@ -9,10 +9,9 @@ RUN apt-get update \
         libxtst6 \
         xfonts-75dpi \
         xfonts-base \
-        xz-utils
-
-
+        xz-utils \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 COPY comment-tree-service-0.0.1-SNAPSHOT.jar /opt/
 #HEALTHCHECK --interval=30s --timeout=30s CMD curl --fail http://localhost:7001/actuator/health || exit 1
-CMD ["/bin/bash", "-c", "java -XX:+PrintFlagsFinal $JAVA_OPTIONS -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -jar /opt/comment-tree-service-0.0.1-SNAPSHOT.jar"]
-
+CMD ["/bin/bash", "-c", "java -XX:+PrintFlagsFinal $JAVA_OPTIONS -XX:+UnlockExperimentalVMOptions -jar /opt/comment-tree-service-0.0.1-SNAPSHOT.jar"]
