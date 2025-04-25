@@ -44,7 +44,7 @@ public class CommentTreeServiceImpl implements CommentTreeService {
   @Autowired
   private RedisTemplate redisTemplate;
 
-  @Value("${redis.ttl}")
+  @Value("${redis.ttl.comment.tree}")
   private long redisTtl;
 
 
